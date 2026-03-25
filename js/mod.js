@@ -84,9 +84,10 @@ function getPointGen() {
 		if(gain.gte(0.01)){
 			gain = gain.mul(100).pow(0.6).div(100)
 		}
-	}
-	if(maxedChallenge("p",11) && gain.gte(100)){
-		gain = gain.div(100).pow(0.6).mul(100)
+	}else{
+		if(maxedChallenge("p",11) && gain.gte(100)){
+			gain = gain.div(100).pow(0.6).mul(100)
+		}
 	}
 	return gain
 }

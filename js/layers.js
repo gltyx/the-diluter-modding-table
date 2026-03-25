@@ -92,7 +92,8 @@ addLayer("p", {
     startData() { return {
         unlocked: true,
 		points: new Decimal(0),
-        vapl: new Decimal(1.1).pow(16).div(new Decimal(0.01).pow(16))
+        vapl: new Decimal(1.1).pow(16).div(new Decimal(0.01).pow(16)),
+        ac1: false,
     }},
     color: "#00ff44",
     type: "none",
@@ -192,12 +193,12 @@ addLayer("p", {
     challenges: {
         11: { 
             name: "一重稀释域",
-            challengeDescription: "进入时：重置稀释点，解锁层级“稀释 1”<br>退出时：重置“稀释 1”层的一切内容<br>挑战内：原本为1.1的稀释点获取底数变为0.01，且若稀释点每秒产量x超过y=0.01，将会变为((x/y)^0.6)×y，若稀释点z超过10，将会每秒变为(z-10)×0.94+10，若超过90，还会额外每秒变为(z-90)×0.906+90<br>",
+            challengeDescription: "进入时：重置稀释点，解锁层级“稀释 1”<br>退出时：重置“稀释 1”层的一切内容<br>挑战内：原本为1.1的稀释点获取底数变为0.01，若稀释点每秒产量x达到y=0.01，会变为((x/y)^0.6)×y，若稀释点z达到10，会每秒变为(z-10)×0.94+10，若达到90，会额外每秒变为(z-90)×0.888+90，若达到100，上述两个软溢出无效<br>",
             goalDescription: "稀释点达到100",
             canComplete() {
                 return player.points.gte(100);
             },
-            rewardDescription: "解锁所有稀释剂的凝浆，解锁“合并场 alpha”层，稀释域内稀释点获取的软上限的阈值y被推迟到100，且稀释点的两重软溢出被移除<br>额外说明：所有泡泡的价格和一重稀释点重置需求在未处于任意稀释域内时变为(1.1^16)/(0.01^16)倍<br>警告：最好不要中途退出任何稀释域，否则在该稀释域内的一切进度都将被丢弃！",
+            rewardDescription: "解锁所有稀释剂的凝浆，解锁“合并场 alpha”层，挑战内稀释点获取的软上限的阈值y被推迟到100，且稀释点的两个软溢出被移除<br>额外说明：所有泡泡的价格和一重稀释点重置需求在未处于任意稀释域内时变为(1.1^16)/(0.01^16)倍<br>警告：最好不要中途退出任何稀释域，否则在该稀释域内的一切进度都将被丢弃！",
             unlocked() {
                 return hasUpgrade("p",11) && hasUpgrade("p",12) && hasUpgrade("p",13) && hasUpgrade("p",14) && hasUpgrade("p",15) && hasUpgrade("p",21) && hasUpgrade("p",22) && hasUpgrade("p",23) && hasUpgrade("p",24) && hasUpgrade("p",25);
             },
@@ -306,7 +307,7 @@ addLayer("p1", {
             currencyDisplayName: "一重稀释点",
             currencyLayer: "p1",
             effect(){
-                let temp = hasUpgrade("p1",11) ? new Decimal(getBuyableAmount("p1",13).div(hasUpgrade("p1",17) ? 9 : 10)) : 0
+                let temp = new Decimal(hasUpgrade("p1",11) ? new Decimal(getBuyableAmount("p1",13).div(hasUpgrade("p1",17) ? 9 : 10)) : 0)
                 if(hasUpgrade("p1",15)){
                     return temp.add(1).pow(upgradeEffect("p1",14)).sub(1)
                 }else{
@@ -324,7 +325,7 @@ addLayer("p1", {
             currencyDisplayName: "一重稀释点",
             currencyLayer: "p1",
             effect(){
-                let temp = hasUpgrade("p1",12) ? new Decimal((hasUpgrade("p1",17) ? buyableRealAmount("p1",12) : getBuyableAmount("p1",12)).div(10)) : 0
+                let temp = new Decimal(hasUpgrade("p1",12) ? new Decimal((hasUpgrade("p1",17) ? buyableRealAmount("p1",12) : getBuyableAmount("p1",12)).div(10)) : 0)
                 if(hasUpgrade("p1",15)){
                     return temp.add(1).pow(upgradeEffect("p1",14)).sub(1)
                 }else{
@@ -336,13 +337,13 @@ addLayer("p1", {
             unlocked(){return true}
         },
         13: {
-            title: "蓄能协同",
-            description: function(){return `将充能按钮的倍率系数x变为1+(x-1)×(1+(泡泡1的购买次数^0.35)/1.5)<br>当前效果：×${format(this.effect())}`},
+            title: "充能协同",
+            description: function(){return `将充能按钮的倍率系数x变为1+(x-1)×y，其中y=(1+(泡泡1的购买次数^0.35)/1.5)<br>当前效果：y=${format(this.effect())}`},
             currencyInternalName: "points",
             currencyDisplayName: "一重稀释点",
             currencyLayer: "p1",
             effect(){
-                let temp = hasUpgrade("p1",13) ? new Decimal(getBuyableAmount("p1",11).pow(0.35).div(1.5).add(1)) : 1
+                let temp = new Decimal(hasUpgrade("p1",13) ? new Decimal(getBuyableAmount("p1",11).pow(0.35).div(1.5).add(1)) : 1)
                 if(hasUpgrade("p1",15)){
                     return temp.pow(upgradeEffect("p1",14))
                 }else{
@@ -366,7 +367,7 @@ addLayer("p1", {
             unlocked(){return true}
         },
         15: {
-            title: "魔力协同",
+            title: "光辉协同",
             description: function(){return `联合协同对充能协同的效果生效，对一重协同与二重协同的效果先+1，再生效，最后-1<br>当前效果：${this.effect()}`},
             currencyInternalName: "points",
             currencyDisplayName: "一重稀释点",
@@ -493,21 +494,23 @@ addLayer("p1", {
         player.p1.htb = (new Decimal(1)).add(player.p1.bx.mul((new Decimal(1)).sub((new Decimal(1)).div(((player.p1.ht).add(1)).pow(0.4)))))
         player.p.vapl = new Decimal(maxedChallenge("p",11) && !inChallenge("p",11) ? new Decimal(1.1).pow(16).div(new Decimal(0.01).pow(16)) : 1)
         if(inChallenge("p",11)){
-		    if(player.points.gte(100)){
-		    	player.points = new Decimal(100)
-		    }else{
+            if(player.p.ac1 == false){
                 if(player.points.gte(10)){
                     player.points = new Decimal((player.points).sub(10).mul(new Decimal(0.94).pow(new Decimal(diffout))).add(10))
                 }
                 if(player.points.gte(90)){
-                    player.points = new Decimal((player.points).sub(90).mul(new Decimal(0.906).pow(new Decimal(diffout))).add(90))
+                    player.points = new Decimal((player.points).sub(90).mul(new Decimal(0.888).pow(new Decimal(diffout))).add(90))
                 }
+            }
+            player.p.ac1 = (player.points).gte(100)
+            if(player.p.ac1 == true){
+                player.points = new Decimal(100)
             }
         }
     }
 })
 
 /*
-player.points = new Decimal("100")
+player.p1.points = new Decimal("99")
 player.p1.ht = new Decimal("32")
 */
